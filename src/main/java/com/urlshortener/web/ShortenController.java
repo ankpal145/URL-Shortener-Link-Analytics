@@ -25,7 +25,7 @@ public class ShortenController {
 
     @PostMapping("/shorten")
     public ResponseEntity<ShortenResponse> shorten(@Valid @RequestBody ShortenRequest request) {
-        Link link = linkService.shorten(request.getUrl());
+        Link link = linkService.shorten(request.getUrl(), request.getAlias());
         String shortUrl = buildShortUrl(link.getCode());
         return ResponseEntity.status(HttpStatus.CREATED).body(ShortenResponse.from(link, shortUrl));
     }
