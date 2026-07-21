@@ -1,0 +1,42 @@
+server:
+  port: 8080
+  forward-headers-strategy: framework
+
+app:
+  base-url: http://localhost:8080
+  ip-hash-salt: change-me-in-prod-please-really
+  short-code:
+    length: 7
+    max-collision-retries: 5
+  alias:
+    pattern: "^[A-Za-z0-9_-]{3,32}$"
+  reserved-paths:
+    - shorten
+    - stats
+    - health
+    - actuator
+    - error
+    - favicon.ico
+
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/urlshortener;AUTO_SERVER=TRUE;MODE=LEGACY
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  h2:
+    console:
+      enabled: false
+
+logging:
+  level:
+    root: INFO
+    com.urlshortener: DEBUG
