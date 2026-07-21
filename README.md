@@ -1,6 +1,39 @@
 # URL Shortener & Link Analytics
 
-A small, honest URL shortener written in **Java 21 + Spring Boot 3.5** with an H2 datastore. It shortens long URLs to short codes, redirects on hit, and records per-link click analytics.
+A small, honest URL shortener written in **Java 21 + Spring Boot 3.5**. It shortens long URLs to short codes, redirects on hit, and records per-link click analytics. Runs on H2 locally with zero setup and on Postgres in production.
+
+## Live deployment
+
+The service is deployed on **Render** (Docker) with a **Neon Postgres** backend:
+
+> **Base URL**: <https://url-shortener-link-analytics-dzlz.onrender.com>
+
+Quick smoke tests against the live service:
+
+```bash
+BASE=https://url-shortener-link-analytics-dzlz.onrender.com
+
+# Shorten
+curl -sX POST $BASE/shorten \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://www.mnnit.ac.in"}'
+
+# Shorten with a custom alias
+curl -sX POST $BASE/shorten \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://example.com/launch","alias":"launch-2026"}'
+
+# Redirect (301) — replace HBgOQki with the code you got back
+curl --head $BASE/HBgOQki
+
+# Stats aggregates
+curl -s $BASE/stats/HBgOQki
+
+# Recent raw clicks (paginated)
+curl -s "$BASE/stats/HBgOQki/clicks?limit=100&offset=0"
+```
+
+The service runs on Render's free tier, so cold-start after ~15 min of idle can take ~30s on the first request.
 
 ## Features
 
@@ -37,6 +70,8 @@ mvn test
 By default the service listens on **http://localhost:8080**. The H2 file lives under `./data/` (gitignored).
 
 ## API examples
+
+The examples below use `http://localhost:8080` for a locally-running instance. Swap the base URL for `https://url-shortener-link-analytics-dzlz.onrender.com` to hit the live deployment.
 
 ### Shorten (auto code)
 
@@ -151,6 +186,25 @@ src/test/java/...  # unit + MockMvc integration tests
 - `app.short-code.length` (default 7), `app.short-code.max-collision-retries` (default 5)
 - `app.alias.pattern` — the regex both aliases and generated codes must match
 - `app.reserved-paths` — words that cannot become codes or aliases
+
+## Deploy your own
+
+The repo is deploy-ready for any container platform + managed Postgres. The live instance uses Render + Neon.
+
+**Environment variables** (set in the platform's dashboard — never in `application.yml`):
+
+| Key | Example / how to get |
+|---|---|
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://HOST/DB?sslmode=require` (from your Postgres provider; **drop `channel_binding=require`** from Neon strings — libpq-only, JDBC will reject it) |
+| `SPRING_DATASOURCE_USERNAME` | e.g. `neondb_owner` |
+| `SPRING_DATASOURCE_PASSWORD` | mark as secret in the dashboard |
+| `APP_IP_HASH_SALT` | `openssl rand -base64 48`; mark as secret. Rotating invalidates historical unique-visitor counts |
+| `APP_BASE_URL` | `https://<your-service>.onrender.com` — used to build `shortUrl` in responses |
+| `PORT` | auto-injected by Render; `server.port` reads it |
+
+The [`Dockerfile`](Dockerfile) is a multi-stage build (Maven+JDK 21 → slim JRE, non-root user). Render auto-detects it; no build/start commands to configure. `/health` doubles as the platform health check.
+
+`.env.example` in the repo is a template you can copy for a local `.env` file (already gitignored) when developing against Postgres instead of H2.
 
 ## Non-goals for this exercise
 
