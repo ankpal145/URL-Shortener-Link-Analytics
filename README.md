@@ -1,12 +1,13 @@
 # URL Shortener & Link Analytics
 
-A small, honest URL shortener written in **Java 21 + Spring Boot 3.5**. It shortens long URLs to short codes, redirects on hit, and records per-link click analytics. Runs on H2 locally with zero setup and on Postgres in production.
+A small, honest URL shortener written in **Java 21 + Spring Boot 3.5**, with a high-grade **React** UI (Vite + Tailwind + Framer Motion + Recharts). It shortens long URLs to short codes, redirects on hit, and records per-link click analytics. Runs on H2 locally with zero setup and on Postgres in production. The SPA ships **inside the same jar** as the API — one Render service, one domain.
 
 ## Live deployment
 
 The service is deployed on **Render** (Docker) with a **Neon Postgres** backend:
 
-> **Base URL**: <https://url-shortener-link-analytics-dzlz.onrender.com>
+> **Base URL**: <https://url-shortener-link-analytics-dzlz.onrender.com>  
+> Open that URL in a browser for the **PulseLink** UI. The JSON API lives on the same host.
 
 Quick smoke tests against the live service:
 
@@ -37,6 +38,7 @@ The service runs on Render's free tier, so cold-start after ~15 min of idle can 
 
 ## Features
 
+**API**
 - `POST /shorten` — accept a URL (+ optional custom alias) and return a short code
 - `GET /{code}` — **301** redirect to the original URL; unknown → **404**
 - `GET /stats/{code}` — click totals, unique visitors, first/last click, top referrers, top user-agents, 14-day daily series
@@ -47,12 +49,22 @@ The service runs on Render's free tier, so cold-start after ~15 min of idle can 
 - Collision-safe short-code generator backed by a DB unique constraint
 - Privacy-conscious analytics — client IPs are stored as **SHA-256(salt || ip)**, never raw
 
+**UI (PulseLink)**
+- Aurora hero + glassmorphism shortener with optional custom alias
+- Animated result card: copy, open, QR code, jump-to-analytics
+- Full analytics dashboard: KPI cards, 14-day area chart, top referrers / user-agents, recent clicks
+- Dark mode by default with light-mode toggle, responsive to 375px, skeleton loaders, toasts
+- Cold-start friendly (“Waking up the server…”) for Render’s free tier
+
 ## Requirements
 
 - **JDK 21** (`java --version` must report `21.x`)
 - **Maven 3.6.3+** (bundled `mvnw` is not included; use system Maven)
+- **Node 22+** and npm — only needed for local UI development / building the SPA
 
 ## Install, run, test
+
+### API only
 
 ```bash
 # Compile
@@ -68,6 +80,35 @@ mvn test
 ```
 
 By default the service listens on **http://localhost:8080**. The H2 file lives under `./data/` (gitignored).
+
+### UI + API (local development)
+
+```bash
+# Terminal A — API
+mvn spring-boot:run
+
+# Terminal B — Vite UI (proxies /shorten, /stats, /health → :8080)
+cd frontend
+npm install
+npm run dev
+```
+
+Open **http://localhost:5173**. Details in [`frontend/README.md`](frontend/README.md).
+
+### Production-shaped local build (UI baked into the jar)
+
+The Docker image builds the SPA and copies it into `classpath:/static/` automatically. To mimic that without Docker:
+
+```bash
+cd frontend && npm ci && npm run build
+mkdir -p ../src/main/resources/static
+cp -R dist/* ../src/main/resources/static/
+cd .. && mvn -DskipTests package
+java -jar target/url-shortener-analytics-0.1.0.jar
+# UI at http://localhost:8080/
+```
+
+(`src/main/resources/static/` is gitignored — it is generated, not source.)
 
 ## API examples
 
@@ -152,7 +193,8 @@ Each row has `clickedAt`, `referer`, `userAgent`, `ipHash` (SHA-256 hex).
 | URL validation | Must be absolute `http`/`https` with a host. Length capped at 2048. Normalization is conservative: scheme/host lower-cased, default ports stripped, single trailing `/` stripped. **Query params are not reordered** and fragments are preserved — two URLs that differ in tracking params get separate mappings, intentionally. |
 | Redirect status | **301 Moved Permanently** with `Cache-Control: no-cache` so intermediaries and browsers still hit the origin (and we still see the click server-side). |
 | Analytics privacy | Only `SHA-256(app_salt || ip)` is stored, not the raw IP. Same-IP repeat clicks still collapse for unique-visitor count, but the reverse map to a specific IP requires knowing the salt and guessing an IP. Referer / user-agent are length-capped to 512 chars. |
-| Reserved paths | `/shorten`, `/stats`, `/health`, `/actuator`, `/error`, `/favicon.ico` are reserved. The redirect route also has a regex constraint (`{code:[A-Za-z0-9_-]{3,32}}`) so it can never shadow an application route. |
+| Reserved paths | `/shorten`, `/stats`, `/health`, `/actuator`, `/error`, UI asset names (`assets`, `favicon.svg`, …) are reserved. The redirect route also has a regex constraint (`{code:[A-Za-z0-9_-]{3,32}}`) so it can never shadow an application or SPA route. |
+| UI packaging | SPA is built in Docker and copied into `classpath:/static/` so API + UI share one Render service and one origin (no CORS). Rejected alternative: separate Vercel deploy. |
 
 ## Data model
 
@@ -162,9 +204,13 @@ Each row has `clickedAt`, `referer`, `userAgent`, `ipHash` (SHA-256 hex).
 ## Project structure
 
 ```
+frontend/                    # Vite + React 19 + TS + Tailwind SPA (PulseLink)
+  src/components/            # Hero, Shortener, ResultCard, Analytics*, ui/*
+  src/api.ts                 # Typed client for /shorten and /stats
+Dockerfile                   # Node UI stage → Maven stage → slim JRE runtime
 src/main/java/com/urlshortener/
   UrlShortenerApplication.java
-  config/          # AppProperties, ClockConfig
+  config/          # AppProperties, ClockConfig, WebConfig (static cache)
   domain/          # Link, ClickEvent
   repository/      # LinkRepository, ClickEventRepository
   service/         # ShortCodeGenerator, UrlValidator, AliasPolicy,
