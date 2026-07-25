@@ -17,6 +17,13 @@ app:
     - actuator
     - error
     - favicon.ico
+    - assets
+    - index.html
+    - robots.txt
+    - vite.svg
+    - favicon.svg
+    - icons.svg
+
 
 spring:
   datasource:

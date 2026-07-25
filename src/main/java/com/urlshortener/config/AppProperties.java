@@ -22,7 +22,9 @@ public class AppProperties {
     @NotNull
     private Alias alias = new Alias();
 
-    private Set<String> reservedPaths = Set.of("shorten", "stats", "health", "actuator", "error");
+    private Set<String> reservedPaths = Set.of(
+            "shorten", "stats", "health", "actuator", "error",
+            "assets", "index.html", "robots.txt", "vite.svg", "favicon.svg", "icons.svg");
 
     public String getBaseUrl() {
         return baseUrl;

@@ -1,5 +1,13 @@
 # syntax=docker/dockerfile:1.7
 
+# ---- UI stage: Vite production build ----
+FROM node:22-alpine AS ui
+WORKDIR /ui
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend/ ./
+RUN npm run build
+
 # ---- build stage: compile the fat jar with Maven + JDK 21 ----
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /src
@@ -8,6 +16,7 @@ COPY pom.xml .
 RUN mvn -q -DskipTests dependency:go-offline
 
 COPY src ./src
+COPY --from=ui /ui/dist ./src/main/resources/static
 RUN mvn -q -DskipTests package \
     && cp target/url-shortener-analytics-*.jar target/app.jar
 
