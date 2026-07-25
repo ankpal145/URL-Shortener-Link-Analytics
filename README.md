@@ -95,6 +95,10 @@ npm run dev
 
 Open **http://localhost:5173**. Details in [`frontend/README.md`](frontend/README.md).
 
+### Deploy UI on Vercel (optional)
+
+The SPA can also be hosted on Vercel while the API stays on Render. [`frontend/vercel.json`](frontend/vercel.json) rewrites `/shorten`, `/stats/*`, and `/health` to the Render service (no CORS). In the Vercel dashboard: set **Root Directory** to `frontend`, Framework **Vite**, output `dist`. Full steps: [`frontend/README.md`](frontend/README.md#deploy-on-vercel).
+
 ### Production-shaped local build (UI baked into the jar)
 
 The Docker image builds the SPA and copies it into `classpath:/static/` automatically. To mimic that without Docker:
