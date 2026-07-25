@@ -1,0 +1,20 @@
+{
+  "rewrites": [
+    {
+      "source": "/shorten",
+      "destination": "https://url-shortener-link-analytics-dzlz.onrender.com/shorten"
+    },
+    {
+      "source": "/stats/:path*",
+      "destination": "https://url-shortener-link-analytics-dzlz.onrender.com/stats/:path*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://url-shortener-link-analytics-dzlz.onrender.com/health"
+    },
+    {
+      "source": "/((?!assets/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
